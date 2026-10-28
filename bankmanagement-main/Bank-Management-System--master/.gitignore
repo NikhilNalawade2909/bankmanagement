@@ -1,0 +1,22 @@
+
+# IntelliJ IDEA
+.idea/
+*.iml
+out/
+
+# Java compiled files
+*.class
+target/
+build/
+
+# Environment variables and secrets
+.env
+.env.*
+*.properties.local
+
+# Operating system
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

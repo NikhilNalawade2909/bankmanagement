@@ -147,6 +147,16 @@ public class Signup2 extends JFrame implements ActionListener {
         e2.setBounds(460,540,100,30);
         add(e2);
 
+        // Senior Citizen radio button group
+        ButtonGroup seniorGroup = new ButtonGroup();
+        seniorGroup.add(r1);
+        seniorGroup.add(r2);
+
+       // Existing Account radio button group
+        ButtonGroup accountGroup = new ButtonGroup();
+        accountGroup.add(e1);
+        accountGroup.add(e2);
+
         JLabel l12 = new JLabel("Form No : ");
         l12.setFont(new Font("Raleway", Font.BOLD,14));
         l12.setBounds(700,10,100,30);
@@ -191,10 +201,10 @@ public class Signup2 extends JFrame implements ActionListener {
             scitizen ="No";
         }
         String eAccount = " ";
-        if ((r1.isSelected())){
+        if (e1.isSelected()) {
             eAccount = "Yes";
-        } else if (r2.isSelected()) {
-            eAccount ="No";
+        } else if (e2.isSelected()) {
+            eAccount = "No";
         }
 
         try{

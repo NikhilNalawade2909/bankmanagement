@@ -1,80 +1,212 @@
+
 package bank.management.system;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
 public class mini extends JFrame implements ActionListener {
+
     String pin;
     JButton button;
-    mini(String pin){
+    JLabel cardLabel;
+    JLabel balanceLabel;
+    JTextArea transactionArea;
+
+    mini(String pin) {
         this.pin = pin;
-        getContentPane().setBackground(new Color(255,204,204));
-        setSize(400,600);
-        setLocation(20,20);
+
+        getContentPane().setBackground(new Color(255, 204, 204));
+
+        setTitle("Mini Statement");
+        setSize(500, 650);
+        setLocation(100, 100);
         setLayout(null);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
-        JLabel label1 = new JLabel();
-        label1.setBounds(20,140,400,200);
-        add(label1);
+        JLabel title = new JLabel("BANK MINI STATEMENT");
+        title.setFont(new Font("Arial", Font.BOLD, 20));
+        title.setBounds(110, 20, 350, 30);
+        add(title);
 
-        JLabel label2 = new JLabel("TechCoder A.V");
-        label2.setFont(new Font("System", Font.BOLD,15));
-        label2.setBounds(150,20,200,20);
-        add(label2);
+        cardLabel = new JLabel("Card Number: Loading...");
+        cardLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        cardLabel.setBounds(30, 80, 430, 30);
+        add(cardLabel);
 
-        JLabel label3 = new JLabel();
-        label3.setBounds(20,80,300,20);
-        add(label3);
+        JLabel historyLabel = new JLabel("TRANSACTION HISTORY");
+        historyLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        historyLabel.setBounds(30, 130, 400, 30);
+        add(historyLabel);
 
-        JLabel label4 = new JLabel();
-        label4.setBounds(20,400,300,20);
-        add(label4);
+        transactionArea = new JTextArea();
+        transactionArea.setEditable(false);
+        transactionArea.setFont(
+                new Font("Monospaced", Font.PLAIN, 13)
+        );
+        transactionArea.setBackground(Color.WHITE);
+        transactionArea.setForeground(Color.BLACK);
+        transactionArea.setLineWrap(false);
 
-        try{
-            Connn c = new Connn();
-            ResultSet resultSet = c.statement.executeQuery("select * from login where pin = '"+pin+"'");
-            while (resultSet.next()){
-                label3.setText("Card Number:  "+ resultSet.getString("card_number").substring(0,4) + "XXXXXXXX"+ resultSet.getString("card_number").substring(12));
-            }
-        }catch (Exception e ){
-            e.printStackTrace();
-        }
+        JScrollPane scrollPane =
+                new JScrollPane(transactionArea);
 
-        try{
-            int balance =0;
-            Connn c = new Connn();
-            ResultSet resultSet = c.statement.executeQuery("select * from bank where pin = '"+pin+"'");
-            while (resultSet.next()){
+        scrollPane.setBounds(30, 170, 425, 300);
+        add(scrollPane);
 
-                label1.setText(label1.getText() + "<html>"+resultSet.getString("date")+"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"+resultSet.getString("type")+"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"+resultSet.getString("amount")+ "<br><br><html>");
+        balanceLabel = new JLabel("Current Balance: Loading...");
+        balanceLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        balanceLabel.setBounds(30, 490, 440, 30);
+        add(balanceLabel);
 
-                if (resultSet.getString("type").equals("Deposit")){
-                    balance += Integer.parseInt(resultSet.getString("amount"));
-                }else {
-                    balance -= Integer.parseInt(resultSet.getString("amount"));
-                }
-            }
-            label4.setText("Your Total Balance is Rs "+balance);
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-
-        button = new JButton("Exit");
-        button.setBounds(20,500,100,25);
-        button.addActionListener(this);
+        button = new JButton("EXIT");
+        button.setBounds(175, 545, 130, 35);
         button.setBackground(Color.BLACK);
         button.setForeground(Color.WHITE);
+        button.addActionListener(this);
         add(button);
+
+        loadMiniStatement();
 
         setVisible(true);
     }
 
+    private void loadMiniStatement() {
+
+        Connn c = new Connn();
+
+        if (c.connection == null) {
+            transactionArea.setText("Database connection failed.");
+            balanceLabel.setText("Balance unavailable");
+            return;
+        }
+
+        String cardQuery =
+                "SELECT cardno FROM login WHERE pin = ?";
+
+        String transactionQuery =
+                "SELECT date, type, amount " +
+                        "FROM bank WHERE pin = ?";
+
+        try (Connection connection = c.connection) {
+
+            // Fetch registered card number
+            try (PreparedStatement ps =
+                         connection.prepareStatement(cardQuery)) {
+
+                ps.setString(1, pin);
+
+                try (ResultSet rs = ps.executeQuery()) {
+
+                    if (rs.next()) {
+                        String cardno = rs.getString("cardno");
+
+                        if (cardno != null && cardno.length() >= 8) {
+                            String masked =
+                                    cardno.substring(0, 4) +
+                                            "XXXXXXXX" +
+                                            cardno.substring(cardno.length() - 4);
+
+                            cardLabel.setText(
+                                    "Card Number: " + masked
+                            );
+                        } else {
+                            cardLabel.setText(
+                                    "Card Number: Unavailable"
+                            );
+                        }
+                    } else {
+                        cardLabel.setText(
+                                "Card Number: Account not found"
+                        );
+                    }
+                }
+            }
+
+            BigDecimal balance = BigDecimal.ZERO;
+            int count = 0;
+
+            StringBuilder history = new StringBuilder();
+
+            history.append("DATE / TIME | TYPE | AMOUNT\n");
+            history.append("----------------------------------------\n\n");
+
+            try (PreparedStatement ps =
+                         connection.prepareStatement(transactionQuery)) {
+
+                ps.setString(1, pin);
+
+                try (ResultSet rs = ps.executeQuery()) {
+
+                    while (rs.next()) {
+
+                        count++;
+
+                        String date = rs.getString("date");
+                        String type = rs.getString("type");
+                        BigDecimal amount =
+                                rs.getBigDecimal("amount");
+
+                        if (amount == null) {
+                            continue;
+                        }
+
+                        history.append(date)
+                                .append("\n")
+                                .append(type)
+                                .append(" : Rs. ")
+                                .append(amount.toPlainString())
+                                .append("\n")
+                                .append("----------------------------------------\n");
+
+                        if ("Deposit".equalsIgnoreCase(type)) {
+                            balance = balance.add(amount);
+
+                        } else if (
+                                "Withdrawl".equalsIgnoreCase(type) ||
+                                        "Withdrawal".equalsIgnoreCase(type)
+                        ) {
+                            balance = balance.subtract(amount);
+                        }
+                    }
+                }
+            }
+
+            if (count == 0) {
+                transactionArea.setText(
+                        "No transactions found for this account."
+                );
+            } else {
+                transactionArea.setText(history.toString());
+            }
+
+            transactionArea.setCaretPosition(0);
+
+            balanceLabel.setText(
+                    "Current Balance: Rs. " +
+                            balance.toPlainString()
+            );
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+
+            transactionArea.setText(
+                    "Unable to load transactions:\n" +
+                            ex.getMessage()
+            );
+
+            balanceLabel.setText("Balance unavailable");
+        }
+    }
+
     @Override
     public void actionPerformed(ActionEvent e) {
-        setVisible(false);
+        dispose();
     }
 
     public static void main(String[] args) {
